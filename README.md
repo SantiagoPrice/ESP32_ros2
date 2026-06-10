@@ -3,6 +3,7 @@
 Add user to dialout group:
 
     sudo usermod -aG dialout $USER
+    sudo reboot
 
 The CH340 serial driver for the ESP32 is not included in the JetPack 6.x kernel, so it needs to be installed manually. Here’s how:
 
