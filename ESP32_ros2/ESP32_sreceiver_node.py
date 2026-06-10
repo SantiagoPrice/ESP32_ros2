@@ -50,6 +50,7 @@ class SerialReceiverNode(Node):
         self.declare_parameter("stopbits", stopbits)
         self.declare_parameter("raw_topic", "/ESP32/raw")
         self.declare_parameter("info_topic", "/ESP32/info")
+        self.declare_parameter("halt_topic", "/ESP32/halt")
         self.declare_parameter("port", port)
 
         baudr    = self.get_parameter("baudr").value
@@ -70,10 +71,12 @@ class SerialReceiverNode(Node):
         timeout = self.get_parameter("timeout").value
         raw_topic = self.get_parameter("raw_topic").value
         info_topic = self.get_parameter("info_topic").value
+        halt_topic = self.get_parameter("halt_topic").value
 
         # ── Publishers ────────────────────────────────────────────────────────
         self._raw_pub  = self.create_publisher(UInt8MultiArray, raw_topic,  10)
         self._info_pub = self.create_publisher(String,          info_topic, 10)
+        self._halt_pub  = self.create_publisher(UInt8MultiArray, halt_topic,  10)
 
         # ── Serial Handler ────────────────────────────────────────────────────────
         
@@ -115,15 +118,17 @@ class SerialReceiverNode(Node):
     def _publish(self, data: bytes) -> None:
         """Build and publish ROS2 messages from a received datagram."""
         # -- UInt8MultiArray (raw bytes) --------------------------------------
-        raw_msg                        = UInt8MultiArray()
-        raw_msg.layout.data_offset     = 0
-        dim                            = MultiArrayDimension()
-        dim.label                      = "bytes"
-        dim.size                       = len(data)
-        dim.stride                     = len(data)
-        raw_msg.layout.dim             = [dim]
-        raw_msg.data                   = list(data)
-        self._raw_pub.publish(raw_msg)
+        
+        if data == b's':
+            raw_msg                        = UInt8MultiArray()
+            raw_msg.layout.data_offset     = 0
+            dim                            = MultiArrayDimension()
+            dim.label                      = "bytes"
+            dim.size                       = len(data)
+            dim.stride                     = len(data)
+            raw_msg.layout.dim             = [dim]
+            raw_msg.data                   = list(data)
+            self._raw_pub.publish(raw_msg)
 
         # -- String info message ---------------------------------------------
         info_msg      = String()
@@ -134,6 +139,19 @@ class SerialReceiverNode(Node):
         self._info_pub.publish(info_msg)
 
         self.get_logger().debug(info_msg.data)
+
+        # -- UInt8MultiArray (For emergency stop) --------------------------------------
+        
+        if data == b'h':
+            raw_msg                        = UInt8MultiArray()
+            raw_msg.layout.data_offset     = 0
+            dim                            = MultiArrayDimension()
+            dim.label                      = "bytes"
+            dim.size                       = len(data)
+            dim.stride                     = len(data)
+            raw_msg.layout.dim             = [dim]
+            raw_msg.data                   = list(data)
+            self._halt_pub.publish(raw_msg)
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
