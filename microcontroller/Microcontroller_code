@@ -1,0 +1,129 @@
+/*
+ * This example demonstrates usage of interrupt by detecting a button press.
+ *
+ * Setup: Connect first button between pin defined in BUTTON1 and GND
+ *        Similarly connect second button between pin defined in BUTTON2 and GND.
+ *        If you do not have a button simply connect a wire to those buttons
+ *        - touching GND pin with other end of the wire will behave same as pressing the connected button.
+ *        Wen using the bare wire be careful not to touch any other pin by accident.
+ *
+ * Note: There is no de-bounce implemented and the physical connection will normally
+ *       trigger many more button presses than actually happened.
+ *       This is completely normal and is not to be considered a fault.
+ */
+
+ /*
+ SIPプロジェクト
+ ESP32とボタンを接続し、ボタンを押下するとESP32がシリアル通信により文字列を送信する
+ */
+
+#include <Arduino.h>
+#include <FunctionalInterrupt.h>
+#include "esp_system.h"
+#include "rom/ets_sys.h"
+
+#define BUTTON1 32
+#define BUTTON2 33
+#define BUTTON3 27
+
+class Button {
+public:
+  Button(uint8_t reqPin, char msg) : PIN(reqPin), message(msg) {
+    pinMode(PIN, INPUT_PULLDOWN); 
+    timer = NULL;
+    pin = reqPin;
+  };
+
+  void begin() {
+    // s_instance = this;
+    pressed = (bool)digitalRead(pin);
+    attachInterrupt(PIN, std::bind(&Button::isr, this), FALLING);
+    // Serial.printf("Started button interrupt on pin %u\n", PIN); 
+  }
+
+  ~Button() {
+    detachInterrupt(PIN);
+  }
+
+  void ARDUINO_ISR_ATTR isr() {
+    if (timer == NULL){
+      timer = timerBegin(1000000); 
+      // timerAttachInterrupt(timer,  &Button::timerISR);
+      timerAttachInterruptArg(timer,  &Button::timerISR, this);
+      timerAlarm(timer, wdtTimeout * 1000ULL, false, 0);
+    } 
+  }
+
+  static void ARDUINO_ISR_ATTR timerISR(void *arg) {
+    // if (s_instance) {
+    //   s_instance->set_press();
+    // }
+    Button *btn =
+      static_cast<Button*>(arg);
+    btn->set_press();
+  }
+
+   void ARDUINO_ISR_ATTR set_press() {
+    timerDetachInterrupt(timer);
+    timerStop(timer);
+    timerEnd(timer);
+    timer = NULL;
+    if (pressed)
+    {
+      numberKeyPresses = numberKeyPresses + 1;
+    }
+    pressed=!pressed;
+    switched = true;
+  }   
+
+  void checkPressed() {
+    if (switched) {
+      if (pressed)
+      {
+        // Serial.println('s');
+        Serial.println(message);
+        //Serial.printf("Button on pin %u has been Pressed %" PRIu32 " times\n", PIN, numberKeyPresses);
+      }     
+      switched = false;
+    }
+  }
+
+private:
+  const uint8_t PIN;
+  char message;
+  volatile uint32_t numberKeyPresses=0;
+  volatile bool pressed;
+  volatile bool switched=false;
+  const int wdtTimeout = 20; //time in ms to trigger the watchdog
+  hw_timer_t *timer;
+  // static Button *s_instance;     // trampoline target
+  int pin;
+  
+   
+};
+
+// Static member definition
+// Button *Button::s_instance = nullptr;
+
+// Button button1(BUTTON1);
+
+Button button1(BUTTON1, 's');
+Button button2(BUTTON2, 'h');
+Button button3(BUTTON3, 'h');
+
+
+void setup() {
+  Serial.begin(115200);
+
+  // Serial.println("Starting Functional Interrupt example.");
+  button1.begin();
+  button2.begin();
+  button3.begin();
+  // Serial.println("Setup done.");
+}
+
+void loop() {
+  button1.checkPressed();
+  button2.checkPressed();
+  button3.checkPressed();
+}
