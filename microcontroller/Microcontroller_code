@@ -24,7 +24,8 @@
 
 #define BUTTON1 32
 #define BUTTON2 33
-#define BUTTON3 27
+#define BUTTON3 18
+#define BUTTON3b 19
 
 class Button {
 public:
@@ -108,12 +109,14 @@ private:
 // Button button1(BUTTON1);
 
 Button button1(BUTTON1, 's');
-Button button2(BUTTON2, 'h');
+// Button button2(BUTTON2, 'h');
 Button button3(BUTTON3, 'h');
 
 
 void setup() {
   Serial.begin(115200);
+pinMode(BUTTON3b, OUTPUT);
+ digitalWrite(BUTTON3b, HIGH);
 
   // Serial.println("Starting Functional Interrupt example.");
   button1.begin();
